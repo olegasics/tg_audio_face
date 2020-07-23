@@ -1,12 +1,9 @@
 import subprocess
 import os
-import soundfile as sf
-import ffmpeg
 import telebot
 import time
 
 from telebot import apihelper
-from pydub import AudioSegment
 
 bot = telebot.TeleBot('1327887205:AAHwgAbPQBDkEPE5lsL-qxChN5tgPXNvXD8')
 apihelper.proxy = {
