@@ -2,7 +2,6 @@ import subprocess
 import os
 import telebot
 import time
-import wave
 import cv2
 
 from telebot import apihelper
@@ -36,8 +35,8 @@ def download_audio(message):
             file.write(dowloaded_file)
         try:
             convert(file_info.file_path.split('/')[1], user_id, date)
-            change_freq(user_id, date)
-        except:
+        except Exception as exc:
+            print(exc)
             bot.send_message(message.from_user.id, 'Что-то пошло не так при конвертации')
         else:
             bot.send_message(message.from_user.id,'Конвертация прошла успешно')
@@ -47,38 +46,54 @@ def download_audio(message):
 
 def convert(file_name, user_id, date):
     src_filename = f'static/audio_voice/{file_name}'
-    est_filename = f'static/audio_voice/{str(user_id)}-{str(date)}.wav'
+    est_filename = f'static/audio_voice/{str(user_id)}-{str(date)}-16kHz.wav'
 
-    process = subprocess.run(['ffmpeg', '-i', src_filename, est_filename])
+    process = subprocess.run(['ffmpeg', '-i', src_filename, '-acodec', 'pcm_s16le', '-ac',
+                              '1',
+                              '-ar',
+                              '16000',
+                              est_filename])
     if process.returncode != 0:
         raise Exception("Something went wrong")
-
-def change_freq(user_id, date):
-    with wave.open(f'static/audio_voice/{str(user_id)}-{str(date)}.wav', 'rb') as file:
-        n_channels = file.getnchannels()
-        sample_width = file.getsampwidth()
-        framerate = 16000
-        n_frames = file.getnframes()
-        comp_type = file.getcomptype()
-        comp_name = file.getcompname()
-        print(file.getframerate())
-
-        frames = file.readframes(n_frames)
-        assert len(frames) == sample_width * n_frames
-
-    with wave.open(f'static/audio_voice/{str(user_id)}-{str(date)}-16kHz.wav', 'wb') as file:
-        params = (n_channels, sample_width, framerate, n_frames, comp_type, comp_name)
-        file.setparams(params)
-        file.writeframes(frames)
 
 @bot.message_handler(content_types=['photo'])
 def download_photo(message):
     file_info = bot.get_file(message.photo[-1].file_id)
     downloaded_file = bot.download_file(file_info.file_path)
+    user_id = str(message.from_user.id)
+    date = str(message.date)
 
-    src = os.path.join(f'static/images', file_info.file_path.split('/')[1])
+    src = os.path.join(f'static/images', f'user-{user_id}_date-{date}.jpg')
 
-    with open(src, 'rb') as file:
+    with open(src, 'wb') as file:
         file.write(downloaded_file)
+
+    try:
+        face_rec(src, user_id, date)
+    except Exception as exc:
+        print(exc)
+        bot.send_message(message.from_user.id, 'Лиц не обнаружено. Попробуйте еще раз')
+    else:
+        bot.send_message(message.from_user.id, 'Обнаружены лица')
+        bot.send_photo(message.from_user.id, photo=open(f'static/images/user-{user_id}_date-{date}-face.jpg', 'rb'))
+
+def face_rec(file_path, user_id, date):
+    face_cascade = cv2.CascadeClassifier(r'/Users/basicscode/PycharmProjects/tg_audio_face/venv/'
+                                         r'lib/python3.8/site-packages/cv2/data/haarcascade_frontalface_default.xml')
+    image = cv2.imread(filename=file_path)
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(
+        gray,
+        scaleFactor=1.1,
+        minNeighbors=5,
+        minSize=(10,10)
+    )
+    if len(faces) != 0:
+        for (x, y, w, h) in faces:
+            cv2.rectangle(image, (x, y), (x+w, y+h), (255, 255, 0), 2)
+        cv2.imwrite(f'static/images/user-{user_id}_date-{date}-face.jpg', image)
+    else:
+        raise Exception
 
 bot.polling()
