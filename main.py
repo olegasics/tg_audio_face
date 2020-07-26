@@ -12,6 +12,7 @@ apihelper.proxy = {
     'https': f'http://{proxy_login}:{proxy_pass}@{proxy_host}:{proxy_port}'
 }
 
+
 @bot.message_handler(commands=['start', 'help'])
 def start(message):
     bot.reply_to(message,
@@ -20,6 +21,7 @@ def start(message):
     time.sleep(3)
     bot.reply_to(message,
                  'Также бот определяет, есть ли на отправленном вами фото лицо. Отправьте любую фотографию')
+
 
 @bot.message_handler(content_types=['voice'])
 def download_audio(message):
@@ -56,6 +58,7 @@ def convert(file_name, user_id, date):
     if process.returncode != 0:
         raise Exception("Something went wrong")
 
+
 @bot.message_handler(content_types=['photo'])
 def download_photo(message):
     file_info = bot.get_file(message.photo[-1].file_id)
@@ -77,9 +80,9 @@ def download_photo(message):
         bot.send_message(message.from_user.id, 'Обнаружены лица')
         bot.send_photo(message.from_user.id, photo=open(f'static/images/user-{user_id}_date-{date}-face.jpg', 'rb'))
 
+
 def face_rec(file_path, user_id, date):
-    face_cascade = cv2.CascadeClassifier(r'/Users/basicscode/PycharmProjects/tg_audio_face/venv/'
-                                         r'lib/python3.8/site-packages/cv2/data/haarcascade_frontalface_default.xml')
+    face_cascade = cv2.CascadeClassifier(r'/etc/tg/venv/lib/python3.8/site-packages/cv2/data/haarcascade_frontalface_default.xml')
     image = cv2.imread(filename=file_path)
 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -95,5 +98,6 @@ def face_rec(file_path, user_id, date):
         cv2.imwrite(f'static/images/user-{user_id}_date-{date}-face.jpg', image)
     else:
         raise Exception
+
 
 bot.polling()
